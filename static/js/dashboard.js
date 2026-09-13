@@ -3,6 +3,16 @@ let allWorkers = [];
 let allProjects = [];
 let allTasks = [];
 
+function getAuthHeaders(extraHeaders = {}) {
+  const token = document.querySelector('meta[name="auth-token"]')?.getAttribute("content");
+  const headers = { ...extraHeaders };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+    headers["X-Worker-Token"] = token;
+  }
+  return headers;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initClock();
   fetchAllData();
@@ -36,7 +46,7 @@ async function fetchAllData() {
 // --- Fetch & Render Stats ---
 async function fetchStats() {
   try {
-    const res = await fetch("/api/v1/stats");
+    const res = await fetch("/api/v1/stats", { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
 
@@ -62,7 +72,7 @@ async function fetchStats() {
 // --- Fetch & Render Workers ---
 async function fetchWorkers() {
   try {
-    const res = await fetch("/api/v1/workers");
+    const res = await fetch("/api/v1/workers", { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     allWorkers = data.workers || [];
@@ -137,7 +147,7 @@ function updateWorkerDropdowns() {
 // --- Fetch & Render Projects ---
 async function fetchProjects() {
   try {
-    const res = await fetch("/api/v1/projects");
+    const res = await fetch("/api/v1/projects", { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     allProjects = data.projects || [];
@@ -194,7 +204,7 @@ function updateProjectDropdowns() {
 // --- Fetch & Render Tasks ---
 async function fetchTasks() {
   try {
-    const res = await fetch("/api/v1/tasks");
+    const res = await fetch("/api/v1/tasks", { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     allTasks = data.tasks || [];
@@ -258,7 +268,7 @@ function renderTasks() {
 // --- Fetch & Render Activity ---
 async function fetchActivity() {
   try {
-    const res = await fetch("/api/v1/activity?limit=40");
+    const res = await fetch("/api/v1/activity?limit=40", { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     const activities = data.activities || [];
@@ -320,7 +330,7 @@ async function handleCreateTask(e) {
   try {
     const res = await fetch("/api/v1/tasks", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (res.ok) {
@@ -344,7 +354,7 @@ async function handleAssignTask(e) {
   try {
     const res = await fetch(`/api/v1/tasks/${taskId}/assign`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ worker_id: workerId }),
     });
     if (res.ok) {
@@ -363,7 +373,7 @@ async function quickStartTask(taskId) {
   try {
     const res = await fetch(`/api/v1/tasks/${taskId}/start`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({}),
     });
     if (res.ok) fetchAllData();
@@ -379,7 +389,7 @@ async function quickCompleteTask(taskId) {
   try {
     const res = await fetch(`/api/v1/tasks/${taskId}/complete`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ result_summary: summary, status: "completed" }),
     });
     if (res.ok) fetchAllData();
@@ -399,7 +409,7 @@ async function handleCreateProject(e) {
   try {
     const res = await fetch("/api/v1/projects", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (res.ok) {
@@ -425,7 +435,7 @@ async function handleImportProject(e) {
   try {
     const res = await fetch("/api/v1/projects/import", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (res.ok) {

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Command Center — Central Supervisor</title>
+  <meta name="auth-token" content="{{ auth_token }}">
+  <meta name="lan-url" content="http://{{ lan_ip }}:{{ lan_port }}">
   <link rel="stylesheet" href="/static/css/dashboard.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +22,12 @@
       </div>
     </div>
     <div class="nav-status">
+      <div class="network-badge" style="font-family:var(--font-mono); font-size:0.75rem; background:#1e293b; padding:4px 10px; border-radius:6px; border:1px solid #334155;">
+        <span style="color:var(--text-muted);">LAN:</span> <strong style="color:var(--accent-cyan);">http://{{ lan_ip }}:{{ lan_port }}</strong>
+      </div>
       <div class="status-indicator online">
         <span class="pulse-dot"></span>
-        <span id="supervisor-status-text">SUPERVISOR: ACTIVE</span>
+        <span id="supervisor-status-text">ACTIVE</span>
       </div>
       <div class="clock" id="live-clock">--:--:-- UTC</div>
       <div class="nav-actions">

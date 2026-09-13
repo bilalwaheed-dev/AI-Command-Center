@@ -28,9 +28,11 @@ The **AI Command Center** is a local-first, provider-agnostic central coordinato
   ```
 
 ### 2. Start the Central Supervisor
+The supervisor automatically detects your primary LAN IP (e.g. `192.168.2.2`), binds to `0.0.0.0:5050`, and generates an uncommitted Bearer token saved in `data/auth_token.secret`:
+
 On Windows:
 ```cmd
-python supervisor.py --host 127.0.0.1 --port 5050
+python supervisor.py --host 0.0.0.0 --port 5050
 # or double-click start_supervisor.bat
 ```
 
@@ -45,33 +47,49 @@ Open your browser and navigate to:
 ```
 http://127.0.0.1:5050
 ```
+Or across your LAN from any device:
+```
+http://<BIG_PC_LAN_IP>:5050   (e.g. http://192.168.2.2:5050)
+```
 
 ---
 
-## Connecting Workers
+## Onboarding Workers
 
-### Running the Headless Daemon
-Any machine (PC-W2 in WSL2, MAC-W1, etc.) can connect to the supervisor using `worker_daemon.py`:
+### Authentication
+All worker mutating calls (`/api/v1/workers`, `/api/v1/workers/<id>/heartbeat`, `/api/v1/tasks/*`) require a Bearer token:
+```http
+Authorization: Bearer <COMMAND_CENTER_TOKEN>
+```
+Your active local development token is stored at `data/auth_token.secret` (and in `.env`, both ignored by Git).
 
+### Onboarding Commands
+
+#### 1. Windows Native (PC-W1 or LAP-W1)
+```cmd
+python worker_daemon.py --server http://127.0.0.1:5050 --worker-id PC-W1 --machine BIG-PC --env WINDOWS-NATIVE --token <YOUR_TOKEN>
+# or run: onboard_pc_w1.bat
+```
+
+#### 2. WSL2 Ubuntu on BIG-PC (PC-W2)
 ```bash
-# Example connecting PC-W2 from WSL2:
-python worker_daemon.py \
-  --server http://127.0.0.1:5050 \
-  --worker-id PC-W2 \
-  --machine BIG-PC \
-  --env WSL2-UBUNTU
+./onboard_pc_w2.sh http://192.168.2.2:5050 <YOUR_TOKEN>
+# or manually:
+python3 worker_daemon.py --server http://192.168.2.2:5050 --worker-id PC-W2 --machine BIG-PC --env WSL2-UBUNTU --token <YOUR_TOKEN>
+```
 
-# Example connecting MAC-W1 across LAN:
-python3 worker_daemon.py \
-  --server http://<BIG_PC_LAN_IP>:5050 \
-  --worker-id MAC-W1 \
-  --machine MACBOOK-1 \
-  --env DARWIN-NATIVE
+#### 3. macOS Workers (MAC-W1, MAC-W2, MAC-W3)
+From the Mac terminal:
+```bash
+./onboard_mac.sh MAC-W1 http://192.168.2.2:5050 <YOUR_TOKEN>
+# or manually:
+python3 worker_daemon.py --server http://192.168.2.2:5050 --worker-id MAC-W1 --machine $(hostname -s) --env DARWIN-NATIVE --token <YOUR_TOKEN>
 ```
 
 ---
 
 ## API Reference (`/api/v1`)
+
 
 | Method | Endpoint | Description |
 |---|---|---|

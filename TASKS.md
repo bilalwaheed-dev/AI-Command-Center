@@ -1,8 +1,8 @@
 # AI Command Center — Task Tracking & Work Breakdown Structure
 
 **Project:** AI-Command-Center  
-**Current Phase:** Phase 1 — Foundation & Core Supervisor Engine  
-**Progress:** 100% (9 / 9 Tasks Completed)
+**Current Phase:** Phase 2 — Remote Fleet Connectivity & WSL2 / macOS Node Onboarding  
+**Progress:** 100% Phase 1 (9/9) | 100% Phase 2 (7/7)
 
 ---
 
@@ -22,77 +22,46 @@
 
 ---
 
-## Task Details & Acceptance Criteria
+## Phase 2 Work Breakdown Structure (Remote Fleet & Authentication)
 
-### T-101: Documentation Architecture
-- **Criteria:** Create comprehensive `ARCHITECTURE.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `PROJECT.yaml`, and `TASKS.md` inside `AI-Command-Center`.
+| Task ID | Title | Priority | Assigned | Status | Est (m) | Criteria / Deliverable |
+|---------|-------|----------|----------|--------|---------|------------------------|
+| T-201 | LAN Accessibility & Host Binding | Urgent | PC-W1 | COMPLETED | 15 | Bind 0.0.0.0, auto-detect host LAN IP (192.168.2.2), expose on local network |
+| T-202 | Bearer Token Auth Engine | Urgent | PC-W1 | COMPLETED | 30 | `auth.py` with secret generation, uncommitted `.env` / `data/*.secret`, route decorators |
+| T-203 | Worker Daemon Security Upgrades | High | PC-W1 | COMPLETED | 25 | Bearer auth in `worker_daemon.py`, status reporting (idle/busy/blocked), `--once` mode |
+| T-204 | Dashboard Auth & LAN Telemetry | High | PC-W1 | COMPLETED | 20 | Injected auth meta tag, `getAuthHeaders` in JS, LAN URL indicator in header |
+| T-205 | PC-W2 WSL2 Ubuntu Onboarding | Urgent | PC-W1 & PC-W2 | COMPLETED | 25 | WSL2 daemon registration, active heartbeat, harmless test task execution verified |
+| T-206 | Multi-Platform Onboarding Scripts | Normal | PC-W1 | COMPLETED | 20 | Windows (`onboard_pc_w1.bat`), WSL2 (`onboard_pc_w2.sh`), macOS (`onboard_mac.sh`) |
+| T-207 | Security & Fleet Test Suite | High | PC-W1 | COMPLETED | 25 | Automated tests in `tests/test_auth_and_fleet.py`, 100% pass across 14 tests |
+
+---
+
+## Task Details & Acceptance Criteria (Phase 2)
+
+### T-201: LAN Accessibility & Host Binding
+- **Criteria:** Supervisor binds to `0.0.0.0:5050` by default; auto-detects primary LAN IP (`192.168.2.2`). Reachable from WSL2 and local LAN.
 - **Status:** COMPLETED
 
-### T-102: Database Schema & WAL Setup
-- **Criteria:**
-  - Create `data/command_center.db` with WAL mode enabled.
-  - Tables: `workers`, `projects`, `phases`, `tasks`, `worker_activities`.
-  - Proper foreign keys, indexes, and automatic timestamp updates.
-  - Idempotent table creation script (`schema.py` or within `database.py`).
-  - Pre-seed default designated workers (`PC-W1`, `PC-W2`, `MAC-W1`, `MAC-W2`, `MAC-W3`, `LAP-W1`).
+### T-202: Bearer Token Auth Engine
+- **Criteria:** `auth.py` generates strong random token (`cc_tok_...`) if not configured in environment; persists in `data/auth_token.secret` (ignored by git). Protects mutating endpoints with 401 on invalid/missing tokens.
+- **Status:** COMPLETED
 
-### T-103: Supervisor Engine Core
-- **Criteria:**
-  - Flask application with Blueprint routing.
-  - REST endpoints under `/api/v1/`:
-    - `GET /api/v1/health`
-    - `GET /api/v1/workers`, `POST /api/v1/workers`
-    - `POST /api/v1/workers/<id>/heartbeat`
-    - `PUT /api/v1/workers/<id>/status`
-    - `GET /api/v1/workers/<id>/tasks/next`
-    - `GET /api/v1/projects`, `POST /api/v1/projects`
-    - `POST /api/v1/projects/import`
-    - `GET /api/v1/projects/<id>`
-    - `GET /api/v1/tasks`, `POST /api/v1/tasks`
-    - `GET /api/v1/tasks/<id>`, `PUT /api/v1/tasks/<id>`
-    - `POST /api/v1/tasks/<id>/assign`
-    - `GET /api/v1/activity`
-    - `GET /api/v1/stats`
-  - Background daemon thread for heartbeat liveness checks (marks missing workers `offline` after 30s).
-  - Dynamic progress calculation logic ($Completed / Total \times 100$).
+### T-203: Worker Daemon Security Upgrades
+- **Criteria:** `worker_daemon.py` supports `--token`, reads `COMMAND_CENTER_TOKEN` env var, attaches Bearer headers, supports explicit status reporting (`idle`, `busy`, `blocked`), and includes single-cycle execution mode (`--once`).
+- **Status:** COMPLETED
 
-### T-104: Project Bootstrap & Import Engine
-- **Criteria:**
-  - `bootstrap_project(name, target_dir, description, template)` creates directory and populates starter docs (`PROJECT.yaml`, `ARCHITECTURE.md`, `ROADMAP.md`, `TASKS.md`, `REQUIREMENTS.md`).
-  - `import_project(path)` inspects folder, registers project in database, creates initial Phase/Tasks.
+### T-204: Dashboard Auth & LAN Telemetry
+- **Criteria:** Dashboard displays LAN connection banner `http://<LAN_IP>:5050`, securely injects auth token into dashboard controller, automatically authorises all browser API requests.
+- **Status:** COMPLETED
 
-### T-105: Worker Adapter Subsystem
-- **Criteria:**
-  - `adapters/base.py`: Abstract worker adapter interface.
-  - `adapters/antigravity.py`: Antigravity adapter supporting mailbox task drop and prompt formatting.
-  - `adapters/http_daemon.py`: HTTP daemon adapter for remote workers.
-  - `adapters/mock.py`: Mock adapter for automated testing.
+### T-205: PC-W2 WSL2 Ubuntu Onboarding
+- **Criteria:** PC-W2 launched inside WSL2 Ubuntu, registers with BIG-PC Supervisor over HTTP LAN IP, sends regular heartbeats, appears live/idle, and executes assigned harmless test task (`TASK-8D30BC4C`) reporting back completion.
+- **Status:** COMPLETED
 
-### T-106: Headless Worker Daemon Client
-- **Criteria:**
-  - `worker_daemon.py`: Standalone CLI script.
-  - Supports `--server`, `--worker-id`, `--machine`, `--env`, `--poll-interval`.
-  - Automatically registers on boot, sends periodic heartbeats, checks for assigned tasks, executes task or reports status, logs output.
+### T-206: Multi-Platform Onboarding Scripts
+- **Criteria:** Standalone launcher scripts created for Windows native, WSL2 Ubuntu, and macOS nodes.
+- **Status:** COMPLETED
 
-### T-107: Responsive Browser Dashboard
-- **Criteria:**
-  - Dark-mode responsive UI served at `/` and `/dashboard`.
-  - Real-time fleet status overview (grid showing all 6 workers with color-coded status pills: online, offline, idle, busy, blocked).
-  - Projects list with live calculated progress bars, remaining task count, and ETA.
-  - Task Queue board with filter by project/worker and quick "New Task" and "Assign" modals.
-  - Live activity feed auto-refreshing every 3-5 seconds.
-
-### T-108: Automated Test Suite
-- **Criteria:**
-  - `tests/test_supervisor.py` covering:
-    1. Database initialization and persistence across connection restarts.
-    2. Worker registration, heartbeat updates, and offline reaper detection.
-    3. Project creation, bootstrap file generation, and project import.
-    4. Task creation, worker assignment, status transitions, and progress percentage calculations.
-    5. All REST API endpoints return 200/201 with expected JSON structures.
-
-### T-109: Verification & Baseline Demonstration
-- **Criteria:**
-  - Run tests and ensure 100% pass rate.
-  - Start supervisor server, verify dashboard loads and returns healthy stats.
-  - Ensure all Phase 1 criteria are satisfied and documented.
+### T-207: Security & Fleet Test Suite
+- **Criteria:** 14 automated tests covering database persistence, worker lifecycles, project imports, Bearer token rejection/acceptance, and remote worker simulation.
+- **Status:** COMPLETED

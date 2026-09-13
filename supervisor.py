@@ -14,6 +14,7 @@ from typing import Any, Dict
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
+from auth import get_or_create_auth_token, require_auth, validate_token
 import config
 from bootstrap_engine import bootstrap_new_project, import_existing_project
 from database import init_db, utc_now_iso
@@ -47,7 +48,14 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
     @app.route("/dashboard")
     def dashboard():
         """Render the command center browser dashboard."""
-        return render_template("dashboard.html")
+        token = get_or_create_auth_token()
+        return render_template(
+            "dashboard.html",
+            auth_token=token,
+            lan_ip=config.PRIMARY_LAN_IP,
+            lan_port=config.DEFAULT_PORT,
+            auth_enabled=config.AUTH_ENABLED,
+        )
 
     # --- API v1 Endpoints ---
 
@@ -58,7 +66,20 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
             "status": "online",
             "service": "AI-Command-Center-Supervisor",
             "version": "1.0.0",
+            "lan_ip": config.PRIMARY_LAN_IP,
+            "port": config.DEFAULT_PORT,
+            "auth_enabled": config.AUTH_ENABLED,
             "timestamp": utc_now_iso(),
+        })
+
+    @app.route("/api/v1/auth/verify", methods=["GET", "POST"])
+    @require_auth
+    def verify_auth():
+        """Verify that a Bearer token is valid."""
+        return jsonify({
+            "authenticated": True,
+            "message": "Bearer token valid",
+            "lan_ip": config.PRIMARY_LAN_IP,
         })
 
     # --- Worker Endpoints ---
@@ -70,6 +91,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"workers": workers, "count": len(workers)})
 
     @app.route("/api/v1/workers", methods=["POST"])
+    @require_auth
     def register_worker():
         """Register or update a worker node."""
         data = request.get_json(force=True) or {}
@@ -109,6 +131,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"worker": worker})
 
     @app.route("/api/v1/workers/<worker_id>/heartbeat", methods=["POST"])
+    @require_auth
     def worker_heartbeat(worker_id: str):
         """Update worker heartbeat timestamp and status."""
         data = request.get_json(silent=True) or {}
@@ -126,6 +149,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"status": "ok", "worker": worker})
 
     @app.route("/api/v1/workers/<worker_id>/status", methods=["PUT"])
+    @require_auth
     def update_worker_status(worker_id: str):
         """Update worker status explicitly."""
         data = request.get_json(force=True) or {}
@@ -145,6 +169,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"worker": worker})
 
     @app.route("/api/v1/workers/<worker_id>/tasks/next", methods=["GET"])
+    @require_auth
     def get_next_task(worker_id: str):
         """Retrieve next assigned or queued task for this worker."""
         task = models.get_next_task_for_worker(worker_id, app.config["DB_PATH"])
@@ -159,6 +184,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"projects": projects, "count": len(projects)})
 
     @app.route("/api/v1/projects", methods=["POST"])
+    @require_auth
     def create_new_project():
         """Scaffold and register a new project."""
         data = request.get_json(force=True) or {}
@@ -180,6 +206,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"project": project}), 201
 
     @app.route("/api/v1/projects/import", methods=["POST"])
+    @require_auth
     def import_project():
         """Import an existing project from directory path."""
         data = request.get_json(force=True) or {}
@@ -227,6 +254,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"tasks": tasks, "count": len(tasks)})
 
     @app.route("/api/v1/tasks", methods=["POST"])
+    @require_auth
     def create_task():
         """Create a new task in the queue."""
         data = request.get_json(force=True) or {}
@@ -258,6 +286,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"task": task})
 
     @app.route("/api/v1/tasks/<task_id>/assign", methods=["POST"])
+    @require_auth
     def assign_task_to_worker(task_id: str):
         """Assign a task to a designated worker."""
         data = request.get_json(force=True) or {}
@@ -271,6 +300,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"task": task})
 
     @app.route("/api/v1/tasks/<task_id>/start", methods=["PUT"])
+    @require_auth
     def start_task_execution(task_id: str):
         """Mark task as actively in progress."""
         data = request.get_json(silent=True) or {}
@@ -281,6 +311,7 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
         return jsonify({"task": task})
 
     @app.route("/api/v1/tasks/<task_id>/complete", methods=["POST"])
+    @require_auth
     def complete_task_execution(task_id: str):
         """Mark task as completed or failed and free worker."""
         data = request.get_json(silent=True) or {}
@@ -312,6 +343,9 @@ def create_app(db_path: Path = config.DB_PATH) -> Flask:
     def system_stats():
         """Get fleet-wide high-level metrics."""
         stats = models.get_system_stats(app.config["DB_PATH"])
+        stats["lan_ip"] = config.PRIMARY_LAN_IP
+        stats["port"] = config.DEFAULT_PORT
+        stats["auth_enabled"] = config.AUTH_ENABLED
         return jsonify(stats)
 
     return app
@@ -330,13 +364,16 @@ def run_heartbeat_reaper(db_path: Path, interval: int = 5, stop_event: threading
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI Command Center — Central Supervisor")
-    parser.add_argument("--host", default=config.DEFAULT_HOST, help="Binding host IP")
-    parser.add_argument("--port", type=int, default=config.DEFAULT_PORT, help="Port number")
+    parser.add_argument("--host", default=config.DEFAULT_HOST, help="Binding host IP (default: 0.0.0.0 for LAN access)")
+    parser.add_argument("--port", type=int, default=config.DEFAULT_PORT, help="Port number (default: 5050)")
     parser.add_argument("--db", default=str(config.DB_PATH), help="Path to SQLite database file")
     args = parser.parse_args()
 
     db_path = Path(args.db).resolve()
     app = create_app(db_path=db_path)
+
+    # Ensure token is created and printed
+    token = get_or_create_auth_token()
 
     # Start background reaper thread
     stop_event = threading.Event()
@@ -347,8 +384,14 @@ def main() -> None:
     )
     reaper_thread.start()
 
-    logger.info(f"AI Command Center Supervisor starting on http://{args.host}:{args.port}")
-    logger.info(f"Persistent database: {db_path}")
+    logger.info("=" * 70)
+    logger.info("AI Command Center — Central Supervisor")
+    logger.info(f"Local Loopback:   http://127.0.0.1:{args.port}")
+    logger.info(f"Local LAN URL:    http://{config.PRIMARY_LAN_IP}:{args.port}")
+    logger.info(f"Binding Interface: {args.host}:{args.port}")
+    logger.info(f"Bearer Token:     {token}")
+    logger.info(f"Database File:    {db_path}")
+    logger.info("=" * 70)
 
     try:
         app.run(host=args.host, port=args.port, debug=False, threaded=True)

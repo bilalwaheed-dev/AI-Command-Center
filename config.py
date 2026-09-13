@@ -15,10 +15,26 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
+import socket
+
+def get_primary_lan_ip() -> str:
+    """Attempt to detect the primary local network IPv4 address."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
+
 # Server settings
-DEFAULT_HOST = os.getenv("COMMAND_CENTER_HOST", "127.0.0.1")
+DEFAULT_HOST = os.getenv("COMMAND_CENTER_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.getenv("COMMAND_CENTER_PORT", "5050"))
+PRIMARY_LAN_IP = get_primary_lan_ip()
 DEBUG = os.getenv("COMMAND_CENTER_DEBUG", "False").lower() in ("true", "1", "yes")
+AUTH_ENABLED = os.getenv("COMMAND_CENTER_AUTH_ENABLED", "true").lower() in ("true", "1", "yes")
 
 # Database settings
 DB_PATH = Path(os.getenv("COMMAND_CENTER_DB", str(DATA_DIR / "command_center.db")))

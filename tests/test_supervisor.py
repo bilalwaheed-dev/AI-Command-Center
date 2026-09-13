@@ -24,6 +24,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from auth import get_or_create_auth_token
 from bootstrap_engine import bootstrap_new_project, import_existing_project
 from database import db_session, init_db, utc_now_iso
 import models
@@ -39,6 +40,8 @@ class TestAICommandCenter(unittest.TestCase):
         self.db_path = Path(self.test_dir) / "test_command_center.db"
         self.app = create_app(db_path=self.db_path)
         self.client = self.app.test_client()
+        self.token = get_or_create_auth_token()
+        self.headers = {"Authorization": f"Bearer {self.token}"}
 
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
@@ -237,7 +240,7 @@ class TestAICommandCenter(unittest.TestCase):
 
         # 3. Create Project via API
         proj_path = str(Path(self.test_dir) / "Api-Proj")
-        res_p = self.client.post("/api/v1/projects", json={
+        res_p = self.client.post("/api/v1/projects", headers=self.headers, json={
             "name": "Api-Proj",
             "path": proj_path,
             "description": "Created via API",
@@ -247,7 +250,7 @@ class TestAICommandCenter(unittest.TestCase):
         p_id = p_json["id"]
 
         # 4. Create Task via API
-        res_t = self.client.post("/api/v1/tasks", json={
+        res_t = self.client.post("/api/v1/tasks", headers=self.headers, json={
             "project_id": p_id,
             "title": "API Created Task",
             "priority": "high",
@@ -259,31 +262,31 @@ class TestAICommandCenter(unittest.TestCase):
         t_id = t_json["id"]
 
         # 5. Heartbeat via API
-        res_hb = self.client.post("/api/v1/workers/PC-W1/heartbeat", json={
+        res_hb = self.client.post("/api/v1/workers/PC-W1/heartbeat", headers=self.headers, json={
             "status": "idle"
         })
         self.assertEqual(res_hb.status_code, 200)
 
         # 6. Assign Task via API
-        res_assign = self.client.post(f"/api/v1/tasks/{t_id}/assign", json={
+        res_assign = self.client.post(f"/api/v1/tasks/{t_id}/assign", headers=self.headers, json={
             "worker_id": "PC-W1"
         })
         self.assertEqual(res_assign.status_code, 200)
         self.assertEqual(res_assign.get_json()["task"]["assigned_worker_id"], "PC-W1")
 
         # 7. Worker next task polling via API
-        res_next = self.client.get("/api/v1/workers/PC-W1/tasks/next")
+        res_next = self.client.get("/api/v1/workers/PC-W1/tasks/next", headers=self.headers)
         self.assertEqual(res_next.status_code, 200)
         next_task = res_next.get_json()["task"]
         self.assertIsNotNone(next_task)
         self.assertEqual(next_task["id"], t_id)
 
         # 8. Start task via API
-        res_start = self.client.put(f"/api/v1/tasks/{t_id}/start")
+        res_start = self.client.put(f"/api/v1/tasks/{t_id}/start", headers=self.headers)
         self.assertEqual(res_start.status_code, 200)
 
         # 9. Complete task via API
-        res_comp = self.client.post(f"/api/v1/tasks/{t_id}/complete", json={
+        res_comp = self.client.post(f"/api/v1/tasks/{t_id}/complete", headers=self.headers, json={
             "result_summary": "Task complete via test API call"
         })
         self.assertEqual(res_comp.status_code, 200)

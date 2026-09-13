@@ -9,12 +9,14 @@ data/*.db-wal
 data/*.db-shm
 !data/.gitkeep
 
-# Environments
+# Environments & Secrets
 .env
 .venv
 env/
 venv/
 ENV/
+*.secret
+data/*.secret
 
 # Logs
 *.log
