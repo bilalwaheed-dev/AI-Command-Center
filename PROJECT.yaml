@@ -1,0 +1,79 @@
+name: AI-Command-Center
+version: 1.0.0
+description: "Central Supervisor and Heterogeneous Worker Orchestrator for Multi-Machine Autonomous Agents"
+architect: PC-W1
+created_at: "2026-09-13T17:00:00+05:00"
+
+environment:
+  runtime: "Python 3.12+"
+  persistence: "SQLite 3 (WAL Mode)"
+  default_host: "127.0.0.1"
+  default_port: 5050
+  heartbeat_timeout_seconds: 30
+  heartbeat_check_interval_seconds: 5
+
+current_phase:
+  id: "phase-1"
+  name: "Phase 1: Foundation & Core Supervisor Engine"
+  status: "in_progress"
+
+designated_workers:
+  - id: PC-W1
+    name: "Big PC Windows Native Worker"
+    machine: "BIG-PC"
+    environment: "WINDOWS-NATIVE"
+    provider_type: "antigravity"
+    capabilities: ["code", "architect", "supervisor_host", "windows_native"]
+    status: "idle"
+
+  - id: PC-W2
+    name: "Big PC WSL2 Ubuntu Worker"
+    machine: "BIG-PC"
+    environment: "WSL2-UBUNTU"
+    provider_type: "antigravity"
+    capabilities: ["code", "linux_native", "bash", "docker", "python"]
+    status: "offline"
+
+  - id: MAC-W1
+    name: "Mac Worker 1"
+    machine: "MACBOOK-1"
+    environment: "DARWIN-NATIVE"
+    provider_type: "antigravity"
+    capabilities: ["code", "macos_native", "darwin_builds"]
+    status: "offline"
+
+  - id: MAC-W2
+    name: "Mac Worker 2"
+    machine: "MACBOOK-2"
+    environment: "DARWIN-NATIVE"
+    provider_type: "antigravity"
+    capabilities: ["code", "macos_native", "frontend", "testing"]
+    status: "offline"
+
+  - id: MAC-W3
+    name: "Mac Worker 3"
+    machine: "MACBOOK-3"
+    environment: "DARWIN-NATIVE"
+    provider_type: "antigravity"
+    capabilities: ["code", "macos_native", "research", "scraping"]
+    status: "offline"
+
+  - id: LAP-W1
+    name: "Field Laptop Worker"
+    machine: "LAPTOP-1"
+    environment: "WINDOWS-PORTABLE"
+    provider_type: "antigravity"
+    capabilities: ["code", "remote_ops"]
+    status: "offline"
+
+paths:
+  data_dir: "data"
+  database_file: "data/command_center.db"
+  templates_dir: "templates"
+  static_dir: "static"
+  adapters_dir: "adapters"
+  tests_dir: "tests"
+
+api:
+  base_path: "/api/v1"
+  cors_enabled: true

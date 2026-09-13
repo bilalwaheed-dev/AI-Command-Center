@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Command Center — Central Supervisor</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="top-nav">
+    <div class="brand">
+      <div class="logo-orb"></div>
+      <div class="brand-text">
+        <h1>AI COMMAND CENTER</h1>
+        <span class="subtext">CENTRAL SUPERVISOR // MULTI-WORKER ORCHESTRATOR</span>
+      </div>
+    </div>
+    <div class="nav-status">
+      <div class="status-indicator online">
+        <span class="pulse-dot"></span>
+        <span id="supervisor-status-text">SUPERVISOR: ACTIVE</span>
+      </div>
+      <div class="clock" id="live-clock">--:--:-- UTC</div>
+      <div class="nav-actions">
+        <button class="btn btn-secondary" onclick="openModal('modal-import-project')">Import Project</button>
+        <button class="btn btn-secondary" onclick="openModal('modal-new-project')">+ New Project</button>
+        <button class="btn btn-primary" onclick="openModal('modal-new-task')">+ New Task</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="dashboard-content">
+    <!-- Top System Metrics -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">FLEET STATUS</div>
+        <div class="metric-val" id="metric-workers-online">0 / 6</div>
+        <div class="metric-sub" id="metric-workers-sub">Workers Active</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">ACTIVE TASKS</div>
+        <div class="metric-val text-accent" id="metric-tasks-active">0</div>
+        <div class="metric-sub" id="metric-tasks-sub">0 Queued / 0 Busy</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">TOTAL WORK DONE</div>
+        <div class="metric-val text-success" id="metric-progress-pct">0%</div>
+        <div class="metric-sub" id="metric-progress-sub">0 Completed / 0 Total</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">REGISTERED PROJECTS</div>
+        <div class="metric-val" id="metric-projects-count">0</div>
+        <div class="metric-sub" id="metric-projects-sub">0 Active Pipelines</div>
+      </div>
+    </section>
+
+    <!-- Worker Fleet Section -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <h2>WORKER FLEET REGISTRY</h2>
+          <span class="badge" id="workers-count-badge">6 Nodes</span>
+        </div>
+        <div class="panel-controls">
+          <button class="btn btn-sm btn-ghost" onclick="fetchWorkers()">Refresh Fleet</button>
+        </div>
+      </div>
+      <div class="worker-grid" id="worker-grid">
+        <!-- Worker cards injected dynamically -->
+        <div class="loading-state">Loading worker nodes...</div>
+      </div>
+    </section>
+
+    <!-- Two-Column Layout for Projects & Tasks vs Live Activity -->
+    <div class="dashboard-columns">
+      <!-- Left Column: Projects and Task Queue -->
+      <div class="col-main">
+        <!-- Projects Section -->
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>PROJECTS & PROGRESS</h2>
+              <span class="badge" id="projects-count-badge">0 Projects</span>
+            </div>
+          </div>
+          <div class="projects-list" id="projects-list">
+            <!-- Injected dynamically -->
+            <div class="loading-state">Loading projects...</div>
+          </div>
+        </section>
+
+        <!-- Task Queue Section -->
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>TASK DISPATCH QUEUE</h2>
+              <span class="badge" id="tasks-count-badge">0 Tasks</span>
+            </div>
+            <div class="panel-filters">
+              <select id="filter-task-status" onchange="renderTasks()">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="queued">Queued</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="blocked">Blocked</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+          <div class="tasks-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Project</th>
+                  <th>Task Title</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assigned Worker</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasks-table-body">
+                <tr><td colspan="7" class="text-center">Loading tasks...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Live Worker Activity Stream -->
+      <div class="col-side">
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>LIVE ACTIVITY STREAM</h2>
+              <span class="live-tag">● REALTIME</span>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="fetchActivity()">Clear Filter</button>
+          </div>
+          <div class="activity-stream" id="activity-stream">
+            <div class="loading-state">Streaming worker events...</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Modal: New Task -->
+  <div class="modal-backdrop" id="modal-new-task">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create & Dispatch Task</h3>
+        <button class="btn-close" onclick="closeModal('modal-new-task')">&times;</button>
+      </div>
+      <form id="form-new-task" onsubmit="handleCreateTask(event)">
+        <div class="form-group">
+          <label>Target Project *</label>
+          <select id="task-project-select" required></select>
+        </div>
+        <div class="form-group">
+          <label>Task Title *</label>
+          <input type="text" id="task-title-input" placeholder="e.g. Implement authentication middleware" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="task-priority-select">
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Est. Minutes</label>
+            <input type="number" id="task-est-input" value="30" min="5" step="5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Assign Directly to Worker (Optional)</label>
+          <select id="task-worker-select">
+            <option value="">-- Leave in Queue (Unassigned) --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description & Objectives</label>
+          <textarea id="task-desc-input" rows="2" placeholder="Brief technical summary..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Prompt Payload (Instruction Envelope)</label>
+          <textarea id="task-prompt-input" rows="4" placeholder="Detailed autonomous prompt / instructions for the assigned worker..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-new-task')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Task -->
+  <div class="modal-backdrop" id="modal-assign-task">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Assign Task to Worker</h3>
+        <button class="btn-close" onclick="closeModal('modal-assign-task')">&times;</button>
+      </div>
+      <form id="form-assign-task" onsubmit="handleAssignTask(event)">
+        <input type="hidden" id="assign-task-id">
+        <div class="form-group">
+          <label>Task: <span id="assign-task-title" class="text-accent"></span></label>
+        </div>
+        <div class="form-group">
+          <label>Select Worker</label>
+          <select id="assign-worker-select" required></select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-assign-task')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Dispatch Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: New Project -->
+  <div class="modal-backdrop" id="modal-new-project">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Bootstrap New Project</h3>
+        <button class="btn-close" onclick="closeModal('modal-new-project')">&times;</button>
+      </div>
+      <form id="form-new-project" onsubmit="handleCreateProject(event)">
+        <div class="form-group">
+          <label>Project Name *</label>
+          <input type="text" id="project-name-input" placeholder="e.g. Autonomous-Pipeline-Engine" required>
+        </div>
+        <div class="form-group">
+          <label>Absolute Directory Path *</label>
+          <input type="text" id="project-path-input" placeholder="e.g. C:\Users\Bilal Chaudhary\My-New-Project" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="project-desc-input" rows="3" placeholder="Project goals and requirements..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-new-project')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Bootstrap Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Import Project -->
+  <div class="modal-backdrop" id="modal-import-project">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Import Existing Project</h3>
+        <button class="btn-close" onclick="closeModal('modal-import-project')">&times;</button>
+      </div>
+      <form id="form-import-project" onsubmit="handleImportProject(event)">
+        <div class="form-group">
+          <label>Existing Project Directory Path *</label>
+          <input type="text" id="import-path-input" placeholder="e.g. C:\Users\Bilal Chaudhary\my-existing-app" required>
+        </div>
+        <div class="form-group">
+          <label>Project Display Name (Optional)</label>
+          <input type="text" id="import-name-input" placeholder="Leave blank to detect automatically">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-import-project')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Import Repository</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
