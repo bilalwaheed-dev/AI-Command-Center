@@ -3,9 +3,15 @@
 
 WORKER_ID="${1:-MAC-W1}"
 SUPERVISOR_URL="${2:-http://192.168.2.2:5050}"
-TOKEN="${3:-cc_tok_85E2nYpua07B6MXwO8MKJ5PXVd2xySDv}"
+TOKEN="${3:-$COMMAND_CENTER_TOKEN}"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+# Prompt for token if not provided as argument or environment variable
+if [ -z "$TOKEN" ]; then
+  read -rsp "Enter Command Center Bearer Token: " TOKEN
+  echo ""
+fi
 
 echo "=========================================================="
 echo "Starting $WORKER_ID Worker Daemon [DARWIN-NATIVE]..."

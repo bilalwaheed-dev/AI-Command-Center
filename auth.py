@@ -58,6 +58,38 @@ def get_or_create_auth_token() -> str:
     return token
 
 
+def rotate_auth_token() -> str:
+    """Generate and persist a new Bearer token, replacing any existing secret."""
+    new_token = f"cc_tok_{secrets.token_urlsafe(24)}"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    TOKEN_FILE.write_text(new_token, encoding="utf-8")
+    if hasattr(os, "chmod"):
+        try:
+            os.chmod(TOKEN_FILE, 0o600)
+        except Exception:
+            pass
+
+    # Update .env
+    lines = []
+    if ENV_FILE.exists():
+        try:
+            for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+                if not line.startswith("COMMAND_CENTER_TOKEN="):
+                    lines.append(line)
+        except Exception:
+            pass
+    lines.append(f"COMMAND_CENTER_TOKEN={new_token}")
+    try:
+        ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+    os.environ["COMMAND_CENTER_TOKEN"] = new_token
+    global ACTIVE_AUTH_TOKEN
+    ACTIVE_AUTH_TOKEN = new_token
+    return new_token
+
+
 ACTIVE_AUTH_TOKEN = get_or_create_auth_token()
 
 
