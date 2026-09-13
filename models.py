@@ -319,20 +319,27 @@ def create_project(
     db_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Create a new project record and default phase."""
+    if isinstance(current_phase, dict):
+        phase_name = current_phase.get("name") or current_phase.get("id") or "Phase 1"
+    else:
+        phase_name = str(current_phase) if current_phase else "Phase 1 - Kickoff"
+
+    desc_str = str(description) if description is not None else ""
+    eta_str = str(eta_target) if eta_target is not None else ""
     now = utc_now_iso()
     with db_session(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO projects (id, name, description, path, status, current_phase, eta_target, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (project_id, name, description, path, status, current_phase, eta_target, now, now))
+        """, (project_id, name, desc_str, path, status, phase_name, eta_str, now, now))
 
         # Default Phase
         phase_id = f"{project_id}-phase-1"
         cursor.execute("""
             INSERT INTO phases (id, project_id, name, order_index, status, created_at)
             VALUES (?, ?, ?, 1, 'in_progress', ?)
-        """, (phase_id, project_id, current_phase, now))
+        """, (phase_id, project_id, phase_name, now))
 
     log_activity(
         "project_created",

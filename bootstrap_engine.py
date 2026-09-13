@@ -169,8 +169,11 @@ def import_existing_project(
                 if isinstance(data, dict):
                     proj_name = data.get("name", proj_name)
                     proj_id = slugify(data.get("id", proj_id))
-                    proj_desc = data.get("description", proj_desc)
-                    current_phase = data.get("current_phase", current_phase)
+                    cp = data.get("current_phase")
+                    if isinstance(cp, dict):
+                        current_phase = cp.get("name") or cp.get("id") or current_phase
+                    elif cp:
+                        current_phase = str(cp)
         except Exception:
             pass
 
